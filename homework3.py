@@ -82,7 +82,7 @@ def BFS(startPoint, maxHeight, site, roadMap):
                     if(x == site[0] and y == site[1]):
                         print("Shortest path = ", nextPath)
                         return
-    print("Shortest pathF: AIL")      
+    print("Shortest path: FAIL")      
     return
 
 def UCS(startPoint, maxHeight, site, roadMap):
@@ -165,14 +165,16 @@ def UCS(startPoint, maxHeight, site, roadMap):
                         nextPath[0] += 10
                     else:
                         nextPath[0] += 14
-                    ##print("nextPath.append([x, y]) ", nextPath)
+                    
+                    
+                    
+                    
+                    #print("nextPath.append([x, y]) ", nextPath)
                     #insert this path to queue sorted by pathlength
                     queue.append(nextPath)
                     #print("queue.append(nextPath) ",queue)
                     index = len(queue)
                     #print("index: ", index)
-
-
                     while ((index // 2 ) > 0) :
                         #print("index // 2: ", index // 2)
                         if nextPath[0] < queue[index // 2 - 1][0]:
@@ -183,10 +185,10 @@ def UCS(startPoint, maxHeight, site, roadMap):
                             break
 
                     #print("sorted queue",queue)
-    print("Shortest pathF: AIL")      
+    print("Shortest path: FAIL")      
     return
 
-def Asearch(startPoint, maxHeight, site, roadMap):
+def Asearch(algorithm, startPoint, maxHeight, site, roadMap):
     pathLength = 0
     queue = []
     #Keep all the visited nodes in the list.
@@ -213,15 +215,24 @@ def Asearch(startPoint, maxHeight, site, roadMap):
                 #print("in if")
                 left = index * 2 + 1
                 right = index * 2 + 2
-                if queue[index][0] >= max(queue[left][0], queue[right][0]):
+                if queue[index][0] > queue[left][0] and queue[index][0] <= queue[right][0]:
+                    queue[index], queue[left] = queue[left], queue[index]
+                    nextIndex = left
+
+                elif queue[index][0] > queue[right][0] and queue[index][0] <= queue[left][0]:
+                    queue[index], queue[right] = queue[right], queue[index]
+                    nextIndex = right
+                    
+                elif queue[index][0] > max(queue[left][0], queue[right][0]):
                     if queue[left][0] == min(queue[left][0], queue[right][0]):
                         nextIndex = left
                     else:
                         nextIndex = right
                     queue[index], queue[nextIndex] = queue[nextIndex], queue[index]
-                    index = nextIndex
+
                 else:
                     break
+                index = nextIndex
             else:
                 #print("in else")
                 left = index * 2 + 1
@@ -262,16 +273,22 @@ def Asearch(startPoint, maxHeight, site, roadMap):
                     ##print("nextPath ", nextPath)
                     nextPath.append([x, y])
 
-                    if (roadMap[y][x] >= 0):
-                        #mud and no rock
-                        mudLevel = roadMap[y][x]
-                        heightChange = abs(currentHeight)
-                    else:
-                        #rock
-                        mudLevel = 0
-                        heightChange = abs(currentHeight - roadMap[y][x])
+                    if algorithm == "UCS":
+                        nextPath[0] += totalCost(0, 0, 0, 0, currentNodeX, currentNodeY, 0, 0)
+                    elif algorithm == "A*":
+                        if (roadMap[y][x] >= 0):
+                            #mud and no rock
+                            mudLevel = roadMap[y][x]
+                            heightChange = abs(currentHeight)
+                        else:
+                            #rock
+                            mudLevel = 0
+                            heightChange = abs(currentHeight - roadMap[y][x])
+                        nextPath[0] += totalCost(x, y, site[0], site[1], currentNodeX, currentNodeY, mudLevel, heightChange)
                     
-                    nextPath[0] += totalCost(x, y, site[0], site[1], currentNodeX, currentNodeY, mudLevel, heightChange)
+                    
+                    
+                    
                     # if(x == currentNodeX or y ==currentNodeY):
                     #     nextPath[0] += 10
                     # else:
@@ -293,7 +310,7 @@ def Asearch(startPoint, maxHeight, site, roadMap):
                             break
 
                     #print("sorted queue",queue)
-    print("Shortest pathF: AIL")      
+    print("Shortest path: FAIL")      
     return
 
 
@@ -333,11 +350,11 @@ if algorithm == "BFS":
     ##print("in bfs")
     for site in siteList:
         BFS(startPoint, maxHeight, site, roadMap)
-elif algorithm == "UCS":
-    #print("in bfs")
+# elif algorithm == "UCS":
+#     #print("in bfs")
+#     for site in siteList:
+#         UCS(startPoint, maxHeight, site, roadMap)
+elif algorithm == "A*" or algorithm == "UCS":
     for site in siteList:
-        UCS(startPoint, maxHeight, site, roadMap)
-elif algorithm == "A*":
-    for site in siteList:
-        Asearch(startPoint, maxHeight, site, roadMap)
+        Asearch(algorithm, startPoint, maxHeight, site, roadMap)
 
