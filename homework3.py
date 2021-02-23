@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import heapq
 
 def findNeighbours(currentNodeY, currentNodeX, ySize, xSize):
     neighbours = []
@@ -16,16 +17,17 @@ def findNeighbours(currentNodeY, currentNodeX, ySize, xSize):
 
 def totalCost(algorithm, nx, ny, sitex, sitey, currentNodeX, currentNodeY, mudLevel, heightChange):
     cost = 0
+    heuristic = 0
     # admissible heuristic
     if algorithm == "A*":
-        cost += math.hypot(sitex - nx, sitey - ny)
+        heuristic = math.hypot(sitex - nx, sitey - ny)
     if(nx == currentNodeX or ny ==currentNodeY):
         cost += 10
     else:
         cost += 14
     cost += mudLevel
     cost += heightChange
-    return cost
+    return [cost, heuristic]
     
 def output(nextPath, lastSite, fail):
     outputStr = ""
@@ -87,63 +89,38 @@ def BFS(startPoint, maxHeight, site, roadMap, lastSite):
                     visited[y][x] = 1
                     if(x == site[0] and y == site[1]):
                         output(nextPath, lastSite, 0)
-                        print("Shortest path = ", nextPath)
+                        #print("Shortest path = ", nextPath)
                         return
     
     output([], lastSite, 1)
-    print("Shortest path: FAIL")
+    #print("Shortest path: FAIL")
     return
 
 def Asearch(algorithm, startPoint, maxHeight, site, roadMap, lastSite):
     pathLength = 0
+    actualCost = 0
     queue = []
+    returnCost = []
+    needHeapify = 0
     #Keep all the visited nodes in the list.
+    #print(roadMap.shape[0],", ",roadMap.shape[1])
     visited = np.zeros([roadMap.shape[0], roadMap.shape[1]], dtype=np.int32)
-    queue.append([pathLength, startPoint])
+    queue.append([pathLength, actualCost, startPoint])
     xSize = roadMap.shape[1]
     ySize = roadMap.shape[0]
+    heapq.heapify(queue)
     #Start A*
     while(len(queue) > 0):
-        path = queue[0]
+        path = heapq.heappop(queue)
         currentNodeX = path[-1][0]
         currentNodeY = path[-1][1]
-        queue[-1], queue[0] = queue[0], queue[-1]
-        queue.pop(-1)
-        index = 0
-        while (index * 2 + 1 < len(queue)):
-            if index * 2 + 2 < len(queue):
-                left = index * 2 + 1
-                right = index * 2 + 2
-                if queue[index][0] > queue[left][0] and queue[index][0] <= queue[right][0]:
-                    queue[index], queue[left] = queue[left], queue[index]
-                    nextIndex = left
-
-                elif queue[index][0] > queue[right][0] and queue[index][0] <= queue[left][0]:
-                    queue[index], queue[right] = queue[right], queue[index]
-                    nextIndex = right
-                    
-                elif queue[index][0] > max(queue[left][0], queue[right][0]):
-                    if queue[left][0] == min(queue[left][0], queue[right][0]):
-                        nextIndex = left
-                    else:
-                        nextIndex = right
-                    queue[index], queue[nextIndex] = queue[nextIndex], queue[index]
-
-                else:
-                    break
-                index = nextIndex
-            else:
-                left = index * 2 + 1
-                if queue[index][0] > queue[left][0]:
-                    queue[index], queue[left] = queue[left], queue[index]
-                    index = left
-                else:
-                    break
-
+        #print("currentNodeY, currentNodeX = ", currentNodeY, currentNodeX)
         if(currentNodeX == site[0] and currentNodeY == site[1]):
+            #print("cost = ", path[0])
+            #print("Shortest path = ", path)
+            path.pop(0)
             path.pop(0)
             output(path, lastSite, 0)
-            print("Shortest path = ", path)
             return
         visited[currentNodeY][currentNodeX] = 1
         """
@@ -151,6 +128,7 @@ def Asearch(algorithm, startPoint, maxHeight, site, roadMap, lastSite):
         x-axis = currentNodeX
         """
         # neighbours[] contains all 8 adjacent nodes
+        
         neighbours = findNeighbours(currentNodeY, currentNodeX, ySize, xSize)
         #set the current height if the node is a rock
         if(roadMap[currentNodeY][currentNodeX] < 0):
@@ -160,47 +138,57 @@ def Asearch(algorithm, startPoint, maxHeight, site, roadMap, lastSite):
         for neighbour in neighbours:
             y = neighbour[0]
             x = neighbour[1]
-            #check if the node has been visited
-            if(visited[y][x] != 1):
-                #check if the new node is a rock
-                if((roadMap[y][x] < 0 and abs(currentHeight - roadMap[y][x]) <= maxHeight) or (roadMap[y][x] >= 0 and abs(currentHeight) <= maxHeight)):
-                    nextPath = path.copy()
-                    nextPath.append([x, y])
-
-                    if algorithm == "UCS":
-                        nextPath[0] += totalCost(algorithm, x, y, 0, 0, currentNodeX, currentNodeY, 0, 0)
-                    elif algorithm == "A*":
-                        if (roadMap[y][x] >= 0):
-                            #mud and no rock
-                            mudLevel = roadMap[y][x]
-                            heightChange = abs(currentHeight)
-                        else:
-                            #rock
-                            mudLevel = 0
-                            heightChange = abs(currentHeight - roadMap[y][x])
-                        nextPath[0] += totalCost(algorithm, x, y, site[0], site[1], currentNodeX, currentNodeY, mudLevel, heightChange)
-                    elif algorithm == "A*check":
-                        if (roadMap[y][x] >= 0):
-                            #mud and no rock
-                            mudLevel = roadMap[y][x]
-                            heightChange = abs(currentHeight)
-                        else:
-                            #rock
-                            mudLevel = 0
-                            heightChange = abs(currentHeight - roadMap[y][x])
-                        nextPath[0] += totalCost(algorithm, x, y, 0, 0, currentNodeX, currentNodeY, mudLevel, heightChange)
-                    #insert this path to queue sorted by pathlength
-                    queue.append(nextPath)
-                    index = len(queue)
-                    while ((index // 2 ) > 0) :
-                        if nextPath[0] < queue[index // 2 - 1][0]:
-
-                            queue[index - 1], queue[index // 2 - 1] = queue[index // 2 - 1 ], queue[index - 1]
-                            index = index // 2
-                        else:
-                            break
+            #check if the new node is a rock
+            if((roadMap[y][x] < 0 and abs(currentHeight - roadMap[y][x]) <= maxHeight) or (roadMap[y][x] >= 0 and abs(currentHeight) <= maxHeight)):
+                nextPath = path.copy()
+                nextPath.append([x, y])
+                if algorithm == "UCS":
+                    #print("old cost:", nextPath[0])
+                    returnCost = totalCost(algorithm, x, y, 0, 0, currentNodeX, currentNodeY, 0, 0)
+                    nextPath[0] += returnCost[0]
+                    #print("new cost:", nextPath[0])
+                elif algorithm == "A*":
+                    if (roadMap[y][x] >= 0):
+                        #mud and no rock
+                        mudLevel = roadMap[y][x]
+                        heightChange = abs(currentHeight)
+                    else:
+                        #rock
+                        mudLevel = 0
+                        heightChange = abs(currentHeight - roadMap[y][x])
+                    returnCost = totalCost(algorithm, x, y, site[0], site[1], currentNodeX, currentNodeY, mudLevel, heightChange)
+                    nextPath[0] = nextPath[1]
+                    nextPath[0] += returnCost[0] + returnCost[1]
+                    nextPath[1] = nextPath[0] - returnCost[1]
+                elif algorithm == "A*check":
+                    if (roadMap[y][x] >= 0):
+                        #mud and no rock
+                        mudLevel = roadMap[y][x]
+                        heightChange = abs(currentHeight)
+                    else:
+                        #rock
+                        mudLevel = 0
+                        heightChange = abs(currentHeight - roadMap[y][x])
+                    nextPath[0] += totalCost(algorithm, x, y, 0, 0, currentNodeX, currentNodeY, mudLevel, heightChange)[0]
+                    #check if the node has been visited
+                
+                if(visited[y][x] != 1):
+                    inqueue = 0
+                    index = -1
+                    for i in queue:
+                        index += 1
+                        if i[-1] == nextPath[-1]:
+                            inqueue = 1
+                            if nextPath[0] < i[0]:
+                                needHeapify = 1
+                                queue[index] = nextPath
+                                break
+                    if inqueue == 0:
+                        heapq.heappush(queue, nextPath)
+        if needHeapify == 1:
+            heapq.heapify(queue)
     output([], lastSite, 1)
-    print("Shortest path: FAIL")      
+    #print("Shortest path: FAIL")      
     return
 
 #read input file
